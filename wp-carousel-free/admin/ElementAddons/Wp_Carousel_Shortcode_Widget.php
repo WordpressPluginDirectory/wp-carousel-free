@@ -3,7 +3,13 @@
  * Elementor wp carousel shortcode Widget.
  *
  * @since 2.4.1
+ * @package WP_Carousel_Free
  */
+
+if ( ! defined( 'ABSPATH' ) ) {
+	exit; // Exit if accessed directly.
+}
+
 class Wp_Carousel_Shortcode_Widget extends \Elementor\Widget_Base {
 	/**
 	 * Get widget name.
@@ -129,15 +135,13 @@ class Wp_Carousel_Shortcode_Widget extends \Elementor\Widget_Base {
 			$main_section_title = get_the_title( $post_id );
 			// Load dynamic style for the existing shortcode.
 			$dynamic_style = WP_Carousel_Free_Public::load_dynamic_style( $post_id, $shortcode_data, $upload_data );
-			echo '<style id="wp_carousel_dynamic_css' . esc_attr( $post_id ) . '">' . $dynamic_style['dynamic_css'] . '</style>';
+			echo '<style id="wp_carousel_dynamic_css' . esc_attr( $post_id ) . '">' . $dynamic_style['dynamic_css'] . '</style>';// phpcs:ignore
 			WP_Carousel_Free_Shortcode::wpcf_html_show( $upload_data, $shortcode_data, $post_id, $main_section_title );
 			?>
 			<script>
 				jQuery('#wpcp-preloader-' + <?php echo intval( $post_id ); ?>).animate({ opacity: 0 }, 600).remove();
 				jQuery('#sp-wp-carousel-free-id-' + <?php echo intval( $post_id ); ?>).animate({ opacity: 1 }, 600);
 			</script>
-			<script src="<?php echo esc_url( WPCAROUSELF_URL . 'public/js/wp-carousel-free-public.min.js' ); ?>" ></script>
-			<script src="<?php echo esc_url( WPCAROUSELF_URL . 'public/js/fancybox-config.min.js' ); ?>" ></script>
 			<?php
 		} else {
 			echo do_shortcode( ' [sp_wpcarousel id="' . $post_id . '"]' );

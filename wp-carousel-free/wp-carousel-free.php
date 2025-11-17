@@ -8,16 +8,17 @@
  *
  * Plugin Name:       WP Carousel
  * Plugin URI:        https://wpcarousel.io/
- * Description:       The most powerful and user-friendly carousel, slider, and gallery plugin for WordPress. Create unlimited beautiful carousels, sliders, and galleries in minutes using images, posts, WooCommerce products, etc.
- * Version:           2.7.5
+ * Description:       Create beautiful image carousels, sliders, video sliders, video galleries, and photo galleries with built-in Lightbox. Easily showcase images, videos, posts, and WooCommerce products with responsive layouts, grids, and fast performance—no code required.
+ * Version:           2.7.8
  * Author:            ShapedPlugin LLC
  * Author URI:        https://shapedplugin.com/
  * License:           GPL-2.0+
  * License URI:       http://www.gnu.org/licenses/gpl-2.0.txt
  * Text Domain:       wp-carousel-free
  * Domain Path:       /languages
+ * Requires PHP: 7.0.0
  * WC requires at least: 6.4
- * WC tested up to:   9.8.1
+ * WC tested up to:   10.0.2
  */
 
 // If this file is called directly, abort.
@@ -77,7 +78,7 @@ class SP_WP_Carousel_Free {
 	 * @since 2.0.0
 	 * @var   string
 	 */
-	private $min_php = '5.6';
+	private $min_php = '7.0.0';
 
 	/**
 	 * Plugin file.
@@ -119,7 +120,7 @@ class SP_WP_Carousel_Free {
 	 */
 	public function setup() {
 		$this->plugin_name = 'wp-carousel-free';
-		$this->version     = '2.7.5';
+		$this->version     = '2.7.8';
 		$this->define_constants();
 		$this->includes();
 		$this->load_dependencies();
@@ -195,7 +196,6 @@ class SP_WP_Carousel_Free {
 	 * Include the following files that make up the plugin:
 	 *
 	 * - WP_Carousel_Free_Loader. Orchestrates the hooks of the plugin.
-	 * - WP_Carousel_Free_I18n. Defines internationalization functionality.
 	 * - WP_Carousel_Free_Admin. Defines all hooks for the admin area.
 	 * - WP_Carousel_Free_Public. Defines all hooks for the public side of the site.
 	 *
@@ -224,8 +224,6 @@ class SP_WP_Carousel_Free {
 		$this->loader->add_action( 'admin_notices', $plugin_admin_notices, 'display_admin_notice' );
 		$this->loader->add_action( 'wp_ajax_sp-wpcfree-never-show-review-notice', $plugin_admin_notices, 'dismiss_review_notice' );
 		add_action( 'wp_ajax_wp_ajax_install_plugin', 'wp_ajax_install_plugin' );
-		$this->loader->add_action( 'admin_notices', $plugin_admin_notices, 'show_admin_offer_banner' );
-		$this->loader->add_action( 'wp_ajax_sp-carousel-hide-offer-banner', $plugin_admin_notices, 'dismiss_friday_offer_banner' );
 	}
 
 	/**
@@ -263,7 +261,34 @@ class SP_WP_Carousel_Free {
 		if ( ( is_plugin_active( 'elementor/elementor.php' ) || is_plugin_active_for_network( 'elementor/elementor.php' ) ) ) {
 			new Wp_Carousel_Free_Element_Shortcode_Block();
 		}
+
+		/**
+		 * Polylang plugin support for multi language support.
+		 */
+		if ( class_exists( 'Polylang' ) ) {
+			/**
+			 *
+			 * Multi Language Support
+			 *
+			 * @since 2.0
+			 */
+			add_filter( 'pll_get_post_types', array( $this, 'wpcp_polylang_cpt_to_pll' ), 10, 2 );
+		}
 	}
+
+	/**
+	 * Polylang_cpt_to_pll
+	 *
+	 * @param  mixed $post_types post types.
+	 * @param  mixed $is_settings hide.
+	 * @return array
+	 */
+	public function wpcp_polylang_cpt_to_pll( $post_types, $is_settings ) {
+		// enables language and translation management.
+		$post_types['sp_wp_carousel'] = 'sp_wp_carousel';
+		return $post_types;
+	}
+
 
 	/**
 	 * Register all of the hooks related to the public-facing functionality
@@ -276,7 +301,7 @@ class SP_WP_Carousel_Free {
 		$plugin_public = new WP_Carousel_Free_Public( $this->get_plugin_name(), $this->get_version() );
 		$this->loader->add_action( 'wp_loaded', $plugin_public, 'register_all_scripts' );
 		$this->loader->add_action( 'wp_enqueue_scripts', $plugin_public, 'enqueue_styles' );
-		$this->loader->add_action( 'save_post', $plugin_public, 'delete_page_wp_carousel_option_on_save' );
+		$this->loader->add_action( 'save_post', $plugin_public, 'update_page_wp_carousel_option_on_save' );
 		$this->loader->add_action( 'admin_enqueue_scripts', $plugin_public, 'admin_enqueue_scripts' );
 
 		$plugin_shortcode = new WP_Carousel_Free_Shortcode( $this->get_plugin_name(), $this->get_version() );
@@ -336,6 +361,30 @@ function sp_wpcf() {
 	$plugin = SP_WP_Carousel_Free::init();
 	$plugin->loader->run();
 }
+
+// Prevents class redeclaration errors and ensures all plugins share a single banner instance.
+if ( ! class_exists( 'ShapedPlugin_Offer_Banner' ) ) {
+	/**
+	 * The class responsible for generating admin offer banner.
+	 */
+	include_once plugin_dir_path( __FILE__ ) . '/admin/views/notices/offer-banner.php';
+}
+
+// Ensures the loader is created only once across all plugins.
+if ( ! function_exists( 'shapedplugin_load_offer_banner' ) ) {
+	/**
+	 * Loads the ShapedPlugin Offer Banner instance.
+	 *
+	 * This function ensures that the singleton instance of the `ShapedPlugin_Offer_Banner` class
+	 * is loaded and available for use. It prevents multiple instances of the class from being created.
+	 *
+	 * @return ShapedPlugin_Offer_Banner The singleton instance of the offer banner class.
+	 */
+	function shapedplugin_load_offer_banner() {
+		return ShapedPlugin_Offer_Banner::instance();
+	}
+}
+shapedplugin_load_offer_banner();
 
 /**
  * Load the main functionalities of the plugin.

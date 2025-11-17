@@ -7,6 +7,10 @@
  * @subpackage WP_Carousel_Free/public
  */
 
+if ( ! defined( 'ABSPATH' ) ) {
+	exit; // Exit if accessed directly.
+}
+
 if ( ! class_exists( 'WPCF_Helper' ) ) {
 	/**
 	 * The WPCF_Helper class.
@@ -140,13 +144,64 @@ if ( ! class_exists( 'WPCF_Helper' ) ) {
 		 * @return string
 		 */
 		public static function get_item_image( $lazy_load_image, $wpcp_layout, $img_url, $title_attr, $width, $height, $alt_text, $lazy_img_url ) {
-			if ( 'false' !== $lazy_load_image && 'carousel' === $wpcp_layout || 'slider' === $wpcp_layout ) {
+			if ( 'false' !== $lazy_load_image && ( 'carousel' === $wpcp_layout || 'slider' === $wpcp_layout ) ) {
 				$image = sprintf( '<img class="wcp-lazy swiper-lazy" data-src="%1$s" src="%6$s" %2$s alt="%3$s" width="%4$s" height="%5$s">', $img_url, $title_attr, $alt_text, $width, $height, $lazy_img_url );
 			} else {
-				$image = sprintf( '<img class="skip-lazy" src="%1$s"%2$s alt="%3$s" width="%4$s" height="%5$s">', $img_url, $title_attr, $alt_text, $width, $height );
+				$image = sprintf( '<img class="skip-lazy" src="%1$s" %2$s alt="%3$s" width="%4$s" height="%5$s">', $img_url, $title_attr, $alt_text, $width, $height );
 			}
 			return $image;
 		}
+
+		/**
+		 * Get translated attachment data for title or alt text.
+		 *
+		 * Supports WPML and Polylang multilingual plugins.
+		 * Falls back to original data if no translation is available.
+		 *
+		 * @since 1.0.0
+		 *
+		 * @param int    $attachment_id The attachment ID.
+		 * @param string $field         The field to retrieve ('title' or 'alt').
+		 * @return string The translated attachment data or empty string.
+		 */
+		public static function get_translated_attachment_data( $attachment_id, $field = 'title' ) {
+			// Check if WPML is active.
+			if ( function_exists( 'apply_filters' ) && has_filter( 'wpml_translate_single_string' ) ) {
+				$image_data = get_post( $attachment_id );
+
+				if ( 'title' === $field ) {
+					return apply_filters( 'wpml_translate_single_string', $image_data->post_title, 'WordPress', 'attachment_' . $attachment_id . '_title' );
+				} elseif ( 'alt' === $field ) {
+					$alt_text = get_post_meta( $attachment_id, '_wp_attachment_image_alt', true );
+					return apply_filters( 'wpml_translate_single_string', $alt_text, 'WordPress', 'attachment_' . $attachment_id . '_alt' );
+				}
+			}
+
+			// Check if Polylang is active.
+			if ( function_exists( 'pll_get_post' ) ) {
+				$current_lang          = function_exists( 'pll_current_language' ) ? pll_current_language() : '';
+				$translated_attachment = pll_get_post( $attachment_id, $current_lang );
+				$translated_attachment = $translated_attachment ? $translated_attachment : $attachment_id;
+
+				if ( 'title' === $field ) {
+					$translated_image_data = get_post( $translated_attachment );
+					return $translated_image_data->post_title;
+				} elseif ( 'alt' === $field ) {
+					return get_post_meta( $translated_attachment, '_wp_attachment_image_alt', true );
+				}
+			}
+
+			// Fallback to original data.
+			if ( 'title' === $field ) {
+				$image_data = get_post( $attachment_id );
+				return $image_data->post_title;
+			} elseif ( 'alt' === $field ) {
+				return get_post_meta( $attachment_id, '_wp_attachment_image_alt', true );
+			}
+
+			return '';
+		}
+
 		/**
 		 * Preloader
 		 *
@@ -250,6 +305,9 @@ if ( ! class_exists( 'WPCF_Helper' ) ) {
 				$gallery_ids         = $upload_data['wpcp_gallery'];
 				$the_image_title_at  = isset( $shortcode_data['wpcp_logo_link_nofollow'] ) ? $shortcode_data['wpcp_logo_link_nofollow'] : '';
 				$image_link_nofollow = $the_image_title_at ? ' rel="nofollow"' : '';
+				$l_box_close_button  = isset( $shortcode_data['l_box_close_button'] ) ? $shortcode_data['l_box_close_button'] : 'close';
+				$l_box_close_button  = $l_box_close_button ? 'close' : '';
+
 				if ( empty( $gallery_ids ) ) {
 					return;
 				}
@@ -262,11 +320,13 @@ if ( ! class_exists( 'WPCF_Helper' ) ) {
 				endif;
 			}
 			if ( 'video-carousel' === $carousel_type ) {
-				$video_sources = isset( $upload_data['carousel_video_source'] ) ? $upload_data['carousel_video_source'] : array();
+				$video_sources      = isset( $upload_data['carousel_video_source'] ) ? $upload_data['carousel_video_source'] : array();
+				$l_box_close_button = isset( $shortcode_data['l_box_close_button'] ) ? $shortcode_data['l_box_close_button'] : 'close';
+				$l_box_close_button = $l_box_close_button ? 'close' : '';
 				if ( empty( $video_sources ) ) {
 					return;
 				}
-				$video_sources = array_slice( $video_sources, 0, 6 );
+				// $video_sources = array_slice( $video_sources, 0, 6 );
 				$lightbox_data = 'data-thumbs="true" data-outside="1" data-loop=1 data-keyboard=1';
 				$sp_urls       = self::get_video_thumb_url( $video_sources );
 				if ( 'rand' === $image_orderby ) {
@@ -354,21 +414,20 @@ if ( ! class_exists( 'WPCF_Helper' ) ) {
 			if ( $wpcp_pagination && 'carousel' !== $wpcp_layout ) {
 				$carousel_type = isset( $upload_data['wpcp_carousel_type'] ) ? $upload_data['wpcp_carousel_type'] : '';
 				if ( 'post-carousel' === $carousel_type || 'product-carousel' === $carousel_type ) {
-					// $wpcp_layout = isset( $shortcode_data['wpcp_layout'] ) ? $shortcode_data['wpcp_layout'] : 'carousel';
 					$wpcp_query = self::wpcp_query( $upload_data, $shortcode_data, $post_id );
 
 					$total_pages = $wpcp_query->max_num_pages;
 					// Full wp pagination example.
-					$wppaged    = 'paged' . $post_id;
+					$wppaged      = 'paged' . $post_id;
+					$current_page = isset( $_GET[ "$wppaged" ] ) ? absint( wp_unslash( $_GET[ $wppaged ] ) ) : 1; // phpcs:ignore -- Nonce not required for read-only pagination parameter.
+
 					$args       = array(
 						'format'       => '?' . $wppaged . '=%#%',
-						// 'format'       => '?paged=%#%',
-						'current'      => isset( $_GET[ "$wppaged" ] ) ? $_GET[ "$wppaged" ] : 1,
+						'current'      => $current_page,
 						'total'        => $total_pages,
 						'prev_next'    => true,
 						'next_text'    => '<i class="fa fa-angle-right"></i>',
 						'prev_text'    => '<i class="fa fa-angle-left"></i>',
-						// 'type'         => $type,
 						'show_all'     => true,
 						'aria_current' => true,
 					);
@@ -399,15 +458,16 @@ if ( ! class_exists( 'WPCF_Helper' ) ) {
 			$final_args      = array();
 			if ( 'post-carousel' === $carousel_type ) {
 					$number_of_total_posts = isset( $upload_data['number_of_total_posts'] ) && ! empty( $upload_data['number_of_total_posts'] ) ? $upload_data['number_of_total_posts'] : -1;
+					$wpcp_post_type        = isset( $upload_data['wpcp_post_type'] ) ? $upload_data['wpcp_post_type'] : 'post';
 					$include_current_post  = apply_filters( 'sp_wpcp_include_current_post', false );
 					$args                  = array(
-						'post_type'      => 'post',
+						'post_type'      => $wpcp_post_type,
 						'post_status'    => 'publish',
 						'fields'         => 'ids',
 						'orderby'        => $post_order_by,
 						'order'          => $post_order, // If used random order, Randomly limited ids come from all ids.
 						'posts_per_page' => $number_of_total_posts,
-						'post__not_in'   => array( get_the_ID() ),
+						'post__not_in'   => array( get_the_ID() ), // phpcs:ignore
 					);
 					if ( $include_current_post ) {
 						unset( $args['post__not_in'] );
@@ -417,10 +477,11 @@ if ( ! class_exists( 'WPCF_Helper' ) ) {
 					$number_of_total_posts = count( $queried_post_ids );
 					if ( ! empty( $queried_post_ids ) ) {
 						if ( 'carousel' !== $wpcp_layout && $wpcp_pagination ) {
-							$wppaged    = 'paged' . $post_id;
-							$paged      = isset( $_GET[ "$wppaged" ] ) ? $_GET[ "$wppaged" ] : 1;
+							$wppaged = 'paged' . $post_id;
+							$paged = isset( $_GET[ "$wppaged" ] ) ? absint( wp_unslash( $_GET[ $wppaged ] ) ) : 1; // phpcs:ignore -- Nonce not required for read-only pagination parameter.
+
 							$final_args = array(
-								'post_type'           => 'post',
+								'post_type'           => $wpcp_post_type,
 								'post_status'         => 'publish',
 								'order'               => $post_order,
 								'orderby'             => $post_order_by,
@@ -432,7 +493,7 @@ if ( ! class_exists( 'WPCF_Helper' ) ) {
 							);
 						} else {
 							$final_args = array(
-								'post_type'           => 'post',
+								'post_type'           => $wpcp_post_type,
 								'post_status'         => 'publish',
 								'order'               => $post_order,
 								'orderby'             => $post_order_by,
@@ -445,8 +506,13 @@ if ( ! class_exists( 'WPCF_Helper' ) ) {
 					}
 			}
 			if ( 'product-carousel' === $carousel_type && ( in_array( 'woocommerce/woocommerce.php', apply_filters( 'active_plugins', get_option( 'active_plugins' ) ), true ) ) ) {
-				$number_of_total_products = isset( $upload_data['wpcp_total_products'] ) && ! empty( $upload_data['wpcp_total_products'] ) ? $upload_data['wpcp_total_products'] : -1;
-				$default_args             = array(
+
+				$number_of_total_products  = isset( $upload_data['wpcp_total_products'] ) && ! empty( $upload_data['wpcp_total_products'] ) ? $upload_data['wpcp_total_products'] : -1;
+				$wpcp_display_product_from = isset( $upload_data['wpcp_display_product_from'] ) ? $upload_data['wpcp_display_product_from'] : 'latest';
+
+				$product_visibility_term_ids = wc_get_product_visibility_term_ids();
+
+				$default_args = array(
 					'post_type'           => 'product',
 					'post_status'         => 'publish',
 					'ignore_sticky_posts' => 1,
@@ -454,7 +520,7 @@ if ( ! class_exists( 'WPCF_Helper' ) ) {
 					'fields'              => 'ids',
 					'orderby'             => $post_order_by,
 					'order'               => $post_order,
-					'meta_query'          => array(
+					'meta_query'          => array( // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query
 						array(
 							'key'     => '_stock_status',
 							'value'   => 'outofstock',
@@ -463,13 +529,22 @@ if ( ! class_exists( 'WPCF_Helper' ) ) {
 					),
 				);
 
+				if ( 'featured_products' === $wpcp_display_product_from ) {
+					$default_args['tax_query'][] = array(
+						'taxonomy' => 'product_visibility',
+						'field'    => 'term_taxonomy_id',
+						'terms'    => $product_visibility_term_ids['featured'],
+					);
+				}
+
 				$queried_post_ids      = get_posts( $default_args );
 				$number_of_total_posts = count( $queried_post_ids );
 
 				if ( ! empty( $queried_post_ids ) ) {
 					if ( 'carousel' !== $wpcp_layout && $wpcp_pagination ) {
-						$wppaged    = 'paged' . $post_id;
-						$paged      = isset( $_GET[ "$wppaged" ] ) ? $_GET[ "$wppaged" ] : 1;
+						$wppaged = 'paged' . $post_id;
+						$paged = isset( $_GET[ "$wppaged" ] ) ? absint( wp_unslash( $_GET[ $wppaged ] ) ) : 1; // phpcs:ignore -- Nonce not required for read-only pagination parameter.
+
 						$final_args = array(
 							'post_type'           => 'product',
 							'post_status'         => 'publish',

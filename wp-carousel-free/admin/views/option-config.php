@@ -49,7 +49,7 @@ SP_WPCF::createSection(
 	$prefix,
 	array(
 		'title'  => __( 'Advanced Controls', 'wp-carousel-free' ),
-		'icon'   => 'fa fa-wrench',
+		'icon'   => 'wpcf-icon-advanced',
 		'fields' => array(
 			array(
 				'id'         => 'wpcf_delete_all_data',
@@ -173,9 +173,8 @@ SP_WPCF::createSection(
 			),
 			array(
 				'id'         => 'wm_custom',
-				'class'      => 'wm_custom',
 				'type'       => 'switcher',
-				'class'      => 'only_pro_settings wpcf_show_hide',
+				'class'      => 'wm_custom only_pro_settings wpcf_show_hide',
 				'title'      => __( 'Custom Size', 'wp-carousel-free' ),
 				'title_help' => __( 'Set watermark custom size related to image (horizontally/vertically)', 'wp-carousel-free' ),
 				'default'    => false,
@@ -195,9 +194,8 @@ SP_WPCF::createSection(
 			),
 			array(
 				'id'           => 'wm_clean',
-				'class'        => 'wm_clean_cache',
 				'type'         => 'media',
-				'class'        => 'only_pro_settings',
+				'class'        => 'wm_clean_cache only_pro_settings',
 				'title'        => __( 'Clean Watermark Cache', 'wp-carousel-free' ),
 				'button_title' => esc_html__( 'Clean', 'wp-carousel-free' ),
 				'url'          => false,
@@ -254,7 +252,7 @@ SP_WPCF::createSection(
 	array(
 		'id'     => 'custom_css_section',
 		'title'  => __( 'Custom CSS', 'wp-carousel-free' ),
-		'icon'   => 'fa fa-file-code-o',
+		'icon'   => 'wpcf-icon-code',
 		'fields' => array(
 			array(
 				'id'       => 'wpcp_custom_css',
@@ -262,25 +260,8 @@ SP_WPCF::createSection(
 				'title'    => __( 'Custom CSS', 'wp-carousel-free' ),
 				'settings' => array(
 					'mode'  => 'css',
-					'theme' => 'monokai',
+					'theme' => 'default',
 				),
-			),
-		),
-	)
-);
-//
-// License Key Fields.
-//
-SP_WPCF::createSection(
-	$prefix,
-	array(
-		'id'     => 'license_key_fields',
-		'title'  => __( 'License Key', 'wp-carousel-free' ),
-		'icon'   => 'fa fa-key',
-		'fields' => array(
-			array(
-				'id'   => 'license_key',
-				'type' => 'license',
 			),
 		),
 	)

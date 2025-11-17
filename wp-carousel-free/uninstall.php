@@ -17,24 +17,6 @@ defined( 'WP_UNINSTALL_PLUGIN' ) || exit;
  * @return void
  */
 function sp_wpcf_delete_plugin_data() {
-	// Fetch all dismiss status keys of Admin offer banner.
-	global $wpdb;
-	$option_prefix = 'sp_wcf_offer_banner_dismiss_status_';
-	$options       = $wpdb->get_results(
-		$wpdb->prepare(
-			"SELECT option_name FROM {$wpdb->options} WHERE option_name LIKE %s",
-			$wpdb->esc_like( $option_prefix ) . '%'
-		)
-	);
-
-	// Loop through and delete each option.
-	if ( ! empty( $options ) ) {
-		foreach ( $options as $option ) {
-			delete_option( $option->option_name );
-			delete_site_option( $option->option_name );
-		}
-	}
-
 	// Delete plugin option settings.
 	$option_name = 'sp_wpcp_settings';
 	delete_option( $option_name );
@@ -55,6 +37,12 @@ function sp_wpcf_delete_plugin_data() {
 	// Delete Carousel post meta.
 	delete_post_meta_by_key( 'sp_wpcp_upload_options' );
 	delete_post_meta_by_key( 'sp_wpcp_shortcode_options' );
+
+	delete_option( 'wpcp_page_data' );
+
+	// Delete offer banner related option keys.
+	delete_option( 'shapedplugin_offer_banner_dismissed_black_friday_2025' );
+	delete_option( 'shapedplugin_offer_banner_dismissed_new_year_2026' );
 }
 
 // Load WPCP file.
